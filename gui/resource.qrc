@@ -1,0 +1,6 @@
+<RCC>
+  <qresource prefix="img">
+    <file>images/timer50resized.png</file>
+  </qresource>
+  <qresource prefix="buttonStyle"/>
+</RCC>
