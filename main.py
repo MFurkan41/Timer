@@ -1,6 +1,7 @@
 from PyQt5 import QtWidgets, QtGui, QtCore
 from gui.frame import Ui_MainWindow
 import sys,time,enum
+from funcs.playMusic import CloneThread
 
 class TimerStatus(enum.Enum):
     init, counting, paused = 1, 2, 3
@@ -13,6 +14,9 @@ class Timer(QtWidgets.QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
         self._left_seconds = 5
+        self._left_secondsB = self._left_seconds
+        self.isLabelRed = False
+        self.timesBlink = 3
 
         self.setWindowFlags(QtCore.Qt.FramelessWindowHint)
         self.setAttribute(QtCore.Qt.WA_TranslucentBackground)
@@ -36,6 +40,16 @@ class Timer(QtWidgets.QMainWindow):
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self._countdown_and_show)
         self.showTime()
+
+        self.blinkTimer = QtCore.QTimer(self)
+        self.blinkTimer.timeout.connect(self.flashLbl)
+
+        self.thread = QtCore.QThread()
+        self.worker = CloneThread()
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        
     
     def increase_decrease(self, num):
         if num:
@@ -50,10 +64,13 @@ class Timer(QtWidgets.QMainWindow):
             self.showTime()
         else:
             self.timer.stop()
-            self.showTime()
             #self.startButton.setText(ButtonText.start)
             self._status = TimerStatus.init
-            self._left_seconds = self.ui.minutesSpinBox.value() * 60
+            self._left_seconds = self._left_secondsB
+            self._reset_event()
+            self.blinkTimer.start(1000)
+            self.thread.start()
+            
 
     def _start_event(self):
         if (self._status == TimerStatus.init or self._status == TimerStatus.paused) and self._left_seconds > 0:
@@ -98,6 +115,21 @@ class Timer(QtWidgets.QMainWindow):
             self.ui.label.setText("{:02}:{:02}".format(int(minutes), int(seconds)))
             self.ui.font.setPointSize(50)
             self.ui.label.setFont(self.ui.font)
+    
+    def flashLbl(self):
+        if self.isLabelRed == False:
+            if self.timesBlink == 0:
+                self.timesBlink = 3
+                self.blinkTimer.stop()
+                self.showTime()
+                return
+            self.ui.label.setStyleSheet("color: rgb(255,0,0)")
+            self.isLabelRed = True
+            self.timesBlink -= 1
+        else:
+            self.ui.label.setStyleSheet("color: rgb(0,0,0)")
+            self.isLabelRed = False
+
     # Move Screen
     def mousePressEvent(self, event: QtGui.QMouseEvent) -> None:
         self.oldPosition = event.globalPos()
